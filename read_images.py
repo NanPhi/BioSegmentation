@@ -38,10 +38,14 @@ class ImageReader(object):
             iy = image.shape[1]
             nx = max(ix, nx)
             ny = max(iy, ny)
-            batch_buffer.append((image-self.mean)/self.image_std)
+            batch_buffer.append((image-self.image_mean)/self.image_std)
         # calibration size is the maximum of the both axis of batch images
+        if nx % 2 != 0:
+            nx = nx + 1
+        if ny % 2 != 0:
+            ny = ny + 1
         cal_size = [nx, ny]
-        batch_images = resize_images(batch_buffer, cal_size)
+        batch_images = self.resize_images(batch_buffer, cal_size)
         self.offset = offset
         return batch_images
 
@@ -78,11 +82,15 @@ class LabelReader(ImageReader):
             nx = max(ix, nx)
             ny = max(iy, ny)
             batch_buffer.append(label)
-        cal_size = [nx. ny]
+        if nx % 2 != 0:
+            nx = nx + 1
+        if ny % 2 != 0:
+            ny = ny + 1
+        cal_size = [nx, ny]
         # batch_labels has a size of [batchsize, width, height]
-        batch_labels = resize_labels(batch_buffer, cal_size)
+        batch_labels = self.resize_labels(batch_buffer, cal_size)
         ### CODE TO DO ###
-        batch_labels = act_onehotkey(batch_labels)
+        batch_labels = self.act_onehotkey(batch_labels)
         return batch_labels
 
     def resize_labels(self, batch_buffer, cal_size):
