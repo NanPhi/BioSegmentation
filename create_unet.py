@@ -100,14 +100,19 @@ class Unet(object):
         return img_seg
 
 class Trainer(object):
-    def __init__(self, img_seg, label, n_class, learning_rate, ):
+    def __init__(self, img_seg, label, n_class, learning_rate, global_step):
         ### TODO ###
         self.img_seg = tf.reshape(img_seg, [-1, n_class])
         self.label = tf.reshape(label, [-1, n_class])
+        self.loss = self.loss()
+        self.optimizer = self.train(learning_rate, global_step)
 
     def loss(self):
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.label, logits=self.img_seg)
         return loss
 
-    def train(self):
-        trainer = tf.train.AdamOptimizer
+    def train(self, learning_rate, global_step):
+        trainer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = trainer.minimize(self.loss, global_step=gloabl_step)
+        return optimizer
+
