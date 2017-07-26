@@ -2,10 +2,9 @@ import tensorflow as tf
 import numpy as np
 
 class Unet(object):
-    def  __init__(self, image, label, n_class):
+    def  __init__(self, image, n_class):
         ### TODO ###
         self.image = image
-        self.label = label
         self.n_class = n_class
 
     '''
@@ -100,24 +99,15 @@ class Unet(object):
         img_seg = self.outputnetwork_segmentation(weights, img_u)
         return img_seg
 
+class Trainer(object):
+    def __init__(self, img_seg, label, n_class, learning_rate, ):
+        ### TODO ###
+        self.img_seg = tf.reshape(img_seg, [-1, n_class])
+        self.label = tf.reshape(label, [-1, n_class])
 
+    def loss(self):
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.label, logits=self.img_seg)
+        return loss
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def train(self):
+        trainer = tf.train.AdamOptimizer
