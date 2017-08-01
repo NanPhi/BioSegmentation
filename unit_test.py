@@ -18,7 +18,7 @@ if FLAGS.mode == "read_image":
 
 if FLAGS.mode == "training":
     # raw data preparation
-    batchsize = 4
+    batchsize = 1
     img_path = "/home/students/nanjiang/Data/unit_test/image/*.tif"
     imagereader = ImageReader(img_path, batchsize)
     image = imagereader.read_batchimages()
@@ -29,14 +29,17 @@ if FLAGS.mode == "training":
     # structure of NN generation
     unet = Unet(image.shape, 7)
     trainer = Trainer(unet.img_seg, n_class=7, learning_rate=1e-6)
+    
+    '''
+    cost_func = trainer.loss
+    global_step_input = tf.Variable(0)
+    optimizer = tf.train.AdamOptimizer(learning_rate=1e-6).minimize(cost_func, global_step=global_step_input)
+    '''
 
     # starting to train
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    sess.run(trainer.train, feed_dict={unet.image:image, trainer.label:label})
-
-
-
+    sess.run(trainer.optimizer, feed_dict={unet.image:image, trainer.label:label.eval(session=sess)})
 
 
 

@@ -67,7 +67,54 @@ class Unet(object):
         img_u = self.uplayers(img_dlist)
         img_seg = self.outputlayers_segmentation(img_u)
         return img_seg
+    
+    '''
+    merge the process of downwards and upwards in order to check the build of tensorflow
+    '''
+    def merge_unet(self, image):
+        img_dlist = []
+        img_dlist.append(image)
+        with tf.variable_scope("downwards"):
+            for i in xrange(5):
+                if i == 0:
+                    weight1 = self.weights_create(shape=[3,3,1,64], name="dw01")
+                else:
+                    weight1 = self.weights_create(shape=[3,3,2**(i+5),2**(i+6)], name="dw"+str(i)+"1")
+                weight2 = self.weights_create(shape=[3,3,2**(i+6),2**(i+6)], name="dw"+str(i)+"2")
+                bias1 = self.bias_create(shape=[2**(i+6)], name="db"+str(i)+"1")
+                bias2 = self.bias_create(shape=[2**(i+6)], name="db"+str(i)+"2")
 
+                tmp = img_dlist[i]
+                if i != 0:
+                    tmp = tf.nn.max_pool(tmp, ksize=[1,2,2,1], strides=[1,2,2,1], padding="SAME")
+                tmp = tf.nn.conv2d(tmp, weight1, strides=[1,1,1,1], padding="SAME")
+                tmp = tf.nn.relu(tmp+bias1)
+                tmp = tf.nn.conv2d(tmp, weight2, strides=[1,1,1,1], padding="SAME")
+                tmp = tf.nn.relu(tmp+bias2)
+                img_dlist.append(tmp)
+
+        tmp = img_dlist[5]
+        with tf.variable_scope("upwards"):
+            for i in xrange(4,0,-1):
+                # tmp_shape = tf.shape(tmp)
+                img_d = img_dlist[i]
+                tmp_shape = tf.shape(img_d)
+                upfilter = self.weights_create(shape=[2,2,2**(i+5), 2**(i+6)], name="uf"+str(i))
+                upb = self.bias_create(shape=[2**(i+5)], name="upb"+str(i))
+                tmp = tf.nn.conv2d_transpose(tmp, upfilter, tf.stack([self.batch_size, tmp_shape[1], tmp_shape[2], tmp_shape[3]]), strides=[1,2,2,1], padding="SAME")
+                tmp = tf.nn.relu(tmp+upb)
+                tmp = tf.concat([img_d, tmp], axis=3)
+                weight1 = self.weights_create(shape=[3,3,2**(i+6),2**(i+5)], name="uw1"+str(i))
+                bias1 = self.bias_create(shape=[2**(i+5)], name="ub1"+str(i))
+                tmp = tf.nn.conv2d(tmp, weight1, strides=[1,1,1,1], padding="SAME")
+                tmp = tf.nn.relu(tmp + bias1)
+                weight2 = self.weights_create(shape=[3,3,2**(i+5),2**(i+5)], name="uw2"+str(i))
+                bias2 = self.bias_create(shape=[2**(i+5)], name="ub2"+str(i))
+                tmp = tf.nn.conv2d(tmp, weight2, strides=[1,1,1,1], padding="SAME")
+                tmp = tf.nn.relu(tmp + bias2)
+        img_u = tmp
+        return img_u
+    
     '''
     these functions all use the attributes written under tf.nn where weights and bias are visible 
     '''
@@ -101,7 +148,7 @@ class Unet(object):
             for i in xrange(4,0,-1):
                 upfilter = self.weights_create(shape=[3,3,2**(i+5),2**(i+6)], name="uf"+str(i))
                 upb = self.bias_create(shape=[2**(i+5)], name="upb"+str(i))
-                tmp = tf.nn.conv2d_transpose(tmp, upfilter, tf.stack([self.batch_size, self.img_size_x/(2**(i-1)), self.img_size_y/(2**(i-1)), 2**(i+5)]), strides = [1, 2, 2, 1])
+                tmp = tf.nn.conv2d_transpose(tmp, upfilter, tf.stack([self.batch_size, self.img_size_x//(2**i), self.img_size_y//(2**i), 2**(i+5)]), strides = [1, 2, 2, 1])
                 tmp = tf.nn.relu(tmp+upb)
                 tmp = tf.concat([img_dlist[i], tmp], axis=3)
                 weight1 = self.weights_create(shape=[3,3,2**(i+6),2**(i+5)], name="uw1"+str(i))
@@ -123,8 +170,11 @@ class Unet(object):
         return img_seg
 
     def network_segmentation(self):
+        '''
         img_dlist = self.downnetwork(self.image)
         image_u = self.upnetwork(img_dlist)
+        '''
+        img_u = self.merge_unet(self.image)
         img_seg = self.outputnetwork_segmentation(img_u)
         return img_seg
 
@@ -133,18 +183,20 @@ class Unet(object):
 class Trainer(object):
     def __init__(self, img_seg, n_class, learning_rate):
         self.img_seg = tf.reshape(img_seg, [-1, n_class])
-        self.label = tf.placeholder("float", shape=[None,None,None,n_class])
-        self.loss = self.loss()
+        self.label = tf.placeholder(dtype=tf.int32, shape=[None, None, None, n_class])
+        label = tf.reshape(self.label, [-1, n_class])
+        self.loss = self.loss(label)
         self.global_step = tf.Variable(0)
         self.optimizer = self.train(learning_rate, self.global_step)
 
-    def loss(self):
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.label, logits=self.img_seg)
+    def loss(self, label):
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=self.img_seg)
         loss = tf.reduce_mean(loss)
         return loss
 
-    def train(self, learning_rate, global_step):
+    def train(self, learning_rate, global_step_input):
         trainer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-        optimizer = trainer.minimize(self.loss, global_step=gloabl_step)
+        optimizer = trainer.minimize(self.loss, global_step=global_step_input)
         return optimizer
+
 
