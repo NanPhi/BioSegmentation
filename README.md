@@ -1,2 +1,7 @@
 # BioSegmentation
-thesis+arbeit
+I made 10 experiments in total to compare performance of different configurations. For each experiment, 5-fold cross-validation is carried out in order to get access to authentic merit of the models. The structures tested are mainly based on two fundamental convolutional networks, i.e. U-Net and FCN-8s. Apart from these two structures, I propose a new structure which I name Delta-Net to take advantage of different loss functions as well. Delta-Net can help find the weights of weighted loss function by optimizing a reference loss. I checked results of both batch size 1 and 2. The loss functions involve the weighted cross-entropy loss functions in which weights are computed either from labels distribution or from Delta-Net and the dice-like coefficient loss functions including dice coefficient and Jaccard distance. Regarding the ways to deal with multi-class segmentation, one-against-all method and all-in-one method are discussed.  Among them, the mini-batchwise balanced weighted loss function, Delta-Net and the all-in-one method are original.
+
+\begin{equation}
+	\label{eq46}
+	L(q)=-\frac{1}{\Omega}\sum \limits_{x\in \Omega}\sum \limits_{i=1}^{n_c}\frac{p_{x,i}\log q_{x,i}}{\#(\textrm{pixels of class i})+\epsilon} = -\frac{1}{\Omega}\sum \limits_{x\in \Omega}\sum \limits_{i=1}^{n_c}\frac{p_{x,i}\log q_{x,i}}{\sum \limits_{x \in \Omega}p_{x,i}+\epsilon}
+\end{equation}
